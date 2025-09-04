@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace SSOClient\SSOClient\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class SSOClientCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'ssoclient';
 
     public $description = 'My command';
 
