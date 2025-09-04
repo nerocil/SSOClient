@@ -26,11 +26,11 @@ class SSOClientServiceProvider extends PackageServiceProvider
     public function register(): void
     {
         $this->app->singleton(SSOClient::class, function ($app) {
-            return new SSOClient();
+            return new SSOClient;
         });
     }
 
-    public function boot():void
+    public function boot(): void
     {
         $this->publishes([
             __DIR__.'/../config/ssoclient.php' => config_path('ssoclient.php'),
