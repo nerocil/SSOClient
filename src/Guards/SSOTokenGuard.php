@@ -12,9 +12,13 @@ use SSOClient\SSOClient\Services\SSOAuthService;
 class SSOTokenGuard implements Guard, StatefulGuard
 {
     protected $request;
+
     protected $provider;
+
     protected $ssoService;
+
     protected $user;
+
     protected $name;
 
     public function __construct(
@@ -31,12 +35,12 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
     public function check()
     {
-        return !is_null($this->user());
+        return ! is_null($this->user());
     }
 
     public function guest()
     {
-        return !$this->check();
+        return ! $this->check();
     }
 
     public function user()
@@ -49,7 +53,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
         // Try to get token from multiple sources
         $token = $this->getTokenFromRequest();
 
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 
@@ -57,18 +61,20 @@ class SSOTokenGuard implements Guard, StatefulGuard
         $userModel = config('auth.providers.users.model', 'App\Models\User');
         $user = $userModel::where('sso_token', $token)->first();
 
-        if (!$user) {
+        if (! $user) {
             Log::debug('No user found with SSO token');
+
             return null;
         }
 
         // Validate token with App1
-        if (!$this->ssoService->validateUserToken($user)) {
+        if (! $this->ssoService->validateUserToken($user)) {
             Log::info("Invalid SSO token for user {$user->id}, attempting refresh");
 
             // Try to refresh token
-            if (!$this->ssoService->refreshUserToken($user)) {
+            if (! $this->ssoService->refreshUserToken($user)) {
                 Log::warning("Failed to refresh token for user {$user->id}");
+
                 return null;
             }
         }
@@ -79,6 +85,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
     public function id()
     {
         $user = $this->user();
+
         return $user ? $user->getAuthIdentifier() : null;
     }
 
@@ -89,19 +96,20 @@ class SSOTokenGuard implements Guard, StatefulGuard
         }
 
         return $this->ssoService->loginUser(
-                $credentials['email'],
-                $credentials['password']
-            ) !== false;
+            $credentials['email'],
+            $credentials['password']
+        ) !== false;
     }
 
     public function hasUser()
     {
-        return !is_null($this->user);
+        return ! is_null($this->user);
     }
 
     public function setUser($user)
     {
         $this->user = $user;
+
         return $this;
     }
 
@@ -115,6 +123,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
         if ($user) {
             $this->login($user, $remember);
+
             return true;
         }
 
@@ -130,6 +139,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
         if ($user) {
             $this->setUser($user);
+
             return true;
         }
 
@@ -165,6 +175,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
         if ($user && $user->sso_token) {
             $this->login($user, $remember);
+
             return $user;
         }
 
@@ -178,6 +189,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
         if ($user && $user->sso_token) {
             $this->setUser($user);
+
             return $user;
         }
 
@@ -188,7 +200,8 @@ class SSOTokenGuard implements Guard, StatefulGuard
     {
         // Check if user was logged in via "remember me"
         $token = $this->request->cookie('sso_token');
-        return !empty($token) && $this->user();
+
+        return ! empty($token) && $this->user();
     }
 
     public function logout()
@@ -203,7 +216,7 @@ class SSOTokenGuard implements Guard, StatefulGuard
 
         $this->user = null;
 
-        Log::info("User logged out from SSO guard");
+        Log::info('User logged out from SSO guard');
     }
 
     /**

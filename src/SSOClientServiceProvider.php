@@ -31,7 +31,7 @@ class SSOClientServiceProvider extends PackageServiceProvider
     {
         // Register the main SSO client
         $this->app->singleton(SSOClient::class, function ($app) {
-            return new SSOClient();
+            return new SSOClient;
         });
 
         // Register the SSO auth service
@@ -88,17 +88,17 @@ class SSOClientServiceProvider extends PackageServiceProvider
         ], 'sso-migrations');
     }
 
-   /* public function register(): void
-    {
-        $this->app->singleton(SSOClient::class, function ($app) {
-            return new SSOClient;
-        });
-    }
+    /* public function register(): void
+     {
+         $this->app->singleton(SSOClient::class, function ($app) {
+             return new SSOClient;
+         });
+     }
 
-    public function boot(): void
-    {
-        $this->publishes([
-            __DIR__.'/../config/sso.php' => config_path('sso.php'),
-        ], 'sso-config');
-    }*/
+     public function boot(): void
+     {
+         $this->publishes([
+             __DIR__.'/../config/sso.php' => config_path('sso.php'),
+         ], 'sso-config');
+     }*/
 }

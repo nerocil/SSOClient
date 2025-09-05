@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use SSOClient\SSOClient\Services\SSOAuthService;
-use Illuminate\Auth\AuthenticationException;
 
 class EnsureSSOAuthenticated
 {
@@ -27,9 +26,9 @@ class EnsureSSOAuthenticated
 
                 // Additional SSO token validation
                 if ($user && isset($user->sso_token)) {
-                    if (!$this->ssoService->validateUserToken($user)) {
+                    if (! $this->ssoService->validateUserToken($user)) {
                         // Try to refresh
-                        if (!$this->ssoService->refreshUserToken($user)) {
+                        if (! $this->ssoService->refreshUserToken($user)) {
                             Auth::guard($guard)->logout();
 
                             if ($request->expectsJson()) {
@@ -52,7 +51,7 @@ class EnsureSSOAuthenticated
         return $this->redirectToLogin($request);
     }
 
-    protected function redirectToLogin(Request $request):\Illuminate\Routing\Redirector|\Illuminate\Http\RedirectResponse
+    protected function redirectToLogin(Request $request): \Illuminate\Routing\Redirector|\Illuminate\Http\RedirectResponse
     {
         $loginRoute = config('sso.login_route', 'login');
 
