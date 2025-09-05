@@ -38,11 +38,7 @@ class SSOAuthService
                     ]
                 );
 
-                // Store token in session for web guard compatibility
-                session(['sso_token' => $authData['token']]);
-
-
-                Log::info("User {$user->id} logged in via SSO from " . config('sso.app_slug'));
+                Log::info("User {$user->id} authenticated via SSO from " . config('sso.app_slug'));
                 return $user;
             }
         } catch (\Exception $e) {
@@ -53,6 +49,33 @@ class SSOAuthService
         }
 
         return false;
+    }
+
+    /**
+     * Login user with automatic Auth::login
+     */
+    public function loginAndAuthenticate($email, $password, $remember = false, $guard = null)
+    {
+        $user = $this->loginUser($email, $password);
+
+        if ($user) {
+            $guardName = $guard ?: config('sso.default_guard', 'sso');
+            Auth::guard($guardName)->login($user, $remember);
+
+            Log::info("User {$user->id} logged in and authenticated via {$guardName} guard");
+            return $user;
+        }
+
+        return false;
+    }
+
+    /**
+     * Attempt login (equivalent to Auth::attempt)
+     */
+    public function attempt(array $credentials, $remember = false, $guard = null)
+    {
+        $guardName = $guard ?: config('sso.default_guard', 'sso');
+        return Auth::guard($guardName)->attempt($credentials, $remember);
     }
 
     public function validateUserToken($user)
@@ -68,7 +91,7 @@ class SSOAuthService
         }
 
         // Cache validation results to avoid excessive API calls
-        $cacheKey = "sso_validate_{$user->id}_{$user->sso_token}";
+        $cacheKey = "sso_validate_{$user->id}_" . hash('sha256', $user->sso_token);
         $cacheDuration = config('sso.validation_cache_duration', 300); // 5 minutes default
 
         return Cache::remember($cacheKey, $cacheDuration, function () use ($user) {
@@ -85,7 +108,7 @@ class SSOAuthService
         });
     }
 
-    public function refreshUserToken($user):bool
+    public function refreshUserToken($user)
     {
         if (!$user || !$user->sso_token) {
             return false;
@@ -95,6 +118,8 @@ class SSOAuthService
             $newTokenData = $this->ssoClient->refreshToken($user->sso_token);
 
             if ($newTokenData) {
+                $oldTokenHash = hash('sha256', $user->sso_token);
+
                 $user->update([
                     'sso_token' => $newTokenData['token'],
                     'token_expires_at' => $newTokenData['expires_at']
@@ -102,13 +127,13 @@ class SSOAuthService
                         : null,
                 ]);
 
-                // Update session token
+                // Update session token if it exists
+                if (session()->has('sso_token')) {
+                    session(['sso_token' => $newTokenData['token']]);
+                }
 
-                session(['sso_token' => $newTokenData['token']]);
-
-
-                // Clear validation cache
-                Cache::forget("sso_validate_{$user->id}_{$user->sso_token}");
+                // Clear old validation cache
+                Cache::forget("sso_validate_{$user->id}_{$oldTokenHash}");
 
                 Log::info("Token refreshed for user {$user->id}");
                 return true;
@@ -122,9 +147,10 @@ class SSOAuthService
         return false;
     }
 
-    public function logoutUser($user = null):void
+    public function logoutUser($user = null, $guard = null)
     {
         $user = $user ?: Auth::user();
+        $guardName = $guard ?: config('sso.default_guard', 'sso');
 
         if ($user && $user->sso_token) {
             try {
@@ -133,20 +159,19 @@ class SSOAuthService
                 Log::warning('SSO logout API call failed: ' . $e->getMessage());
             }
 
+            $tokenHash = hash('sha256', $user->sso_token);
+
             $user->update([
                 'sso_token' => null,
                 'token_expires_at' => null,
             ]);
+
+            // Clear validation cache
+            Cache::forget("sso_validate_{$user->id}_{$tokenHash}");
         }
 
-        // Clear session and cache
-
-        session()->forget('sso_token');
-
-
-        if ($user) {
-            Cache::forget("sso_validate_{$user->id}_{$user->sso_token}");
-        }
+        // Logout from the specified guard
+        Auth::guard($guardName)->logout();
 
         Log::info("User logged out from " . config('sso.app_slug'));
     }

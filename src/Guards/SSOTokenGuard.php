@@ -3,12 +3,13 @@
 namespace SSOClient\SSOClient\Guards;
 
 use Illuminate\Contracts\Auth\Guard;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use SSOClient\SSOClient\Services\SSOAuthService;
 
-class SSOTokenGuard implements Guard
+class SSOTokenGuard implements Guard, StatefulGuard
 {
     protected $request;
     protected $provider;
@@ -28,12 +29,12 @@ class SSOTokenGuard implements Guard
         $this->ssoService = $ssoService;
     }
 
-    public function check():bool
+    public function check()
     {
         return !is_null($this->user());
     }
 
-    public function guest():bool
+    public function guest()
     {
         return !$this->check();
     }
@@ -104,6 +105,107 @@ class SSOTokenGuard implements Guard
         return $this;
     }
 
+    // StatefulGuard interface methods
+    public function attempt(array $credentials = [], $remember = false)
+    {
+        $user = $this->ssoService->loginUser(
+            $credentials['email'] ?? '',
+            $credentials['password'] ?? ''
+        );
+
+        if ($user) {
+            $this->login($user, $remember);
+            return true;
+        }
+
+        return false;
+    }
+
+    public function once(array $credentials = [])
+    {
+        $user = $this->ssoService->loginUser(
+            $credentials['email'] ?? '',
+            $credentials['password'] ?? ''
+        );
+
+        if ($user) {
+            $this->setUser($user);
+            return true;
+        }
+
+        return false;
+    }
+
+    public function login($user, $remember = false)
+    {
+        // Set the user in the guard
+        $this->setUser($user);
+
+        // Store token in session for persistence
+        if ($user->sso_token) {
+            $this->request->session()->put('sso_token', $user->sso_token);
+
+            if ($remember) {
+                // Set a longer-lived cookie for "remember me"
+                cookie()->queue(
+                    'sso_token',
+                    $user->sso_token,
+                    config('sso.remember_duration', 43200) // 30 days default
+                );
+            }
+        }
+
+        Log::info("User {$user->id} logged in via SSO guard");
+    }
+
+    public function loginUsingId($id, $remember = false)
+    {
+        $userModel = config('auth.providers.users.model', 'App\Models\User');
+        $user = $userModel::find($id);
+
+        if ($user && $user->sso_token) {
+            $this->login($user, $remember);
+            return $user;
+        }
+
+        return false;
+    }
+
+    public function onceUsingId($id)
+    {
+        $userModel = config('auth.providers.users.model', 'App\Models\User');
+        $user = $userModel::find($id);
+
+        if ($user && $user->sso_token) {
+            $this->setUser($user);
+            return $user;
+        }
+
+        return false;
+    }
+
+    public function viaRemember()
+    {
+        // Check if user was logged in via "remember me"
+        $token = $this->request->cookie('sso_token');
+        return !empty($token) && $this->user();
+    }
+
+    public function logout()
+    {
+        if ($this->user) {
+            $this->ssoService->logoutUser($this->user);
+        }
+
+        // Clear session and cookies
+        $this->request->session()->forget('sso_token');
+        cookie()->queue(cookie()->forget('sso_token'));
+
+        $this->user = null;
+
+        Log::info("User logged out from SSO guard");
+    }
+
     /**
      * Get token from various request sources
      */
@@ -144,35 +246,5 @@ class SSOTokenGuard implements Guard
     public function getName()
     {
         return $this->name;
-    }
-
-    /**
-     * Attempt to authenticate the user
-     */
-    public function attempt(array $credentials = [], $remember = false)
-    {
-        $user = $this->ssoService->loginUser(
-            $credentials['email'] ?? '',
-            $credentials['password'] ?? ''
-        );
-
-        if ($user) {
-            $this->setUser($user);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Log the user out
-     */
-    public function logout()
-    {
-        if ($this->user) {
-            $this->ssoService->logoutUser($this->user);
-        }
-
-        $this->user = null;
     }
 }
