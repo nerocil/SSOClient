@@ -4,4 +4,4 @@ parameters:
 			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
 			identifier: larastan.noEnvCallsOutsideOfConfig
 			count: 12
-			path: config/ssoclient.php
+			path: config/sso.php

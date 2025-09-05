@@ -98,7 +98,7 @@ class SSOClientServiceProvider extends PackageServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__.'/../config/ssoclient.php' => config_path('ssoclient.php'),
+            __DIR__.'/../config/sso.php' => config_path('sso.php'),
         ], 'sso-config');
     }*/
 }
