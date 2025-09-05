@@ -16,9 +16,9 @@ class SSOClient
 
     public function __construct()
     {
-        $this->authServerUrl = config('ssoclient.auth_server_url');
-        $this->appSlug = config('ssoclient.app_slug');
-        $this->secretKey = config('ssoclient.secret_key');
+        $this->authServerUrl = config('sso.auth_server_url');
+        $this->appSlug = config('sso.app_slug');
+        $this->secretKey = config('sso.secret_key');
     }
 
     /**
