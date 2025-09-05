@@ -3,13 +3,15 @@
 namespace SSOClient\SSOClient;
 
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class SSOClient
 {
     protected string $authServerUrl;
+
     protected string $appSlug;
+
     protected string $secretKey;
 
     public function __construct()
